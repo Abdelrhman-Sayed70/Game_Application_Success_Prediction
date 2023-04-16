@@ -2,5 +2,5 @@
 
 ### We can use 
 - Multiple Linear Regression [Most Simple]
-- Polynomial Linear Regression 
+- Polynomial Regression 
 - Ridge / Lasso
