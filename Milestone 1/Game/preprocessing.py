@@ -1,3 +1,4 @@
+from numpy import save
 from sklearn.preprocessing import MinMaxScaler
 import pickle
 import numpy as np
@@ -5,9 +6,9 @@ import pandas as pd
 from statistics import mean, mode
 import re
 from sklearn.feature_selection import f_regression, f_classif, SelectKBest
-
+import pickle
 scaler = None
-dev_dict = None
+savee = None
 cols = None
 ver_m = None
 org_m = None
@@ -20,7 +21,7 @@ def base(df):
     fill_nulls(df)
     df = avarage_Purchases(df, 'In-app Purchases')
     ConvertToDateTime(df, ['Original Release Date', 'Current Version Release Date'])
-    PreProcessAgrRating(df)
+    #PreProcessAgrRating(df)
     df['Description'] = df['Description'].str.lower()
     df['Game Difficulty'] = df['Description'].apply(extract_difficulty)
     df.drop(columns='Description', inplace=True)
@@ -62,18 +63,23 @@ def on_train(df):
     df['Current Version Release Date'] = df['Current Version Release Date'].fillna(vermean)
     global ver_m
     ver_m = pickle.dumps(vermean)
+    savee(vermean,"vermean.pkl")
     orgmean = pd.to_datetime(df['Original Release Date']).mean()
     df['Original Release Date'] = df['Original Release Date'].fillna(orgmean)
     global org_m
     org_m = pickle.dumps(orgmean)
+    savee(orgmean,"orgmean.pkl")
     devmode = df['Developer'].mode()
     df['Developer'] = df['Developer'].fillna(devmode)
     global dev_m
     dev_m = pickle.dumps(devmode)
+    savee(devmode,"devmode.pkl")
     agemode = df['Age Rating'].mode()
     df['Age Rating'] = df['Age Rating'].fillna(agemode)
     global age_m
     age_m = pickle.dumps(agemode)
+    savee(agemode,"agemode.pkl")
+    PreProcessAgrRating(df)
     return df
 
 
@@ -81,20 +87,28 @@ def on_test(df):
     df = apply_scaling(df)
     df = replace_dev(df)
     df = PreprocessListCategories_test(df, ['Genres', 'Languages'])
-    vermean = pickle.loads(ver_m)
+    vermean = load("vermean.pkl")
     df['Current Version Release Date'] = df['Current Version Release Date'].fillna(vermean)
-    orgmean = pickle.loads(org_m)
-    df['Original Release Date'] = df['Original Release Date'].fillna(orgmean)
-    devmode = pickle.loads(dev_m)
-    df['Developer'] = df['Developer'].fillna(devmode)
-    agemode = pickle.loads(age_m)
-    df['Age Rating'] = df['Age Rating'].fillna(agemode)
-    return df
+    orgmean = load("orgmean.pkl")
 
+    df['Original Release Date'] = df['Original Release Date'].fillna(orgmean)
+    devmode = load("devmode.pkl")
+    df['Developer'] = df['Developer'].fillna(devmode)
+    agemode =load("agemode.pkl")
+    df['Age Rating'] = df['Age Rating'].fillna(agemode[0])
+    PreProcessAgrRating(df)
+    return df
 
 def drop_cols(df):
     df.drop(columns=['ID', 'URL', 'Name', 'Icon URL', 'Subtitle', 'Primary Genre'], inplace=True)
 
+def load(name):
+    with open(name, 'rb') as f:
+        my_list = pickle.load(f)
+        return my_list
+def savee(model,name):
+    with open(name, 'wb') as file:
+        pickle.dump(model, file)
 
 def scaling(df):
     s = MinMaxScaler()
@@ -104,11 +118,12 @@ def scaling(df):
                         'Current Version Release Date']])
     global scaler
     scaler = pickle.dumps(s)
+    savee(s,"scaler.pkl")
     return df
 
 
 def apply_scaling(df):
-    s = pickle.loads(scaler)
+    s = load("scaler.pkl")
     df[['User Rating Count', 'In-app Purchases', 'Size', 'Original Release Date',
         'Current Version Release Date']] = s.transform(df[['User Rating Count', 'In-app Purchases', 'Size', 'Original Release Date',
                         'Current Version Release Date']])
@@ -122,6 +137,7 @@ def fill_nulls(df):
     df['User Rating Count'] = df['User Rating Count'].fillna(0)
     df['Size'] = df['Size'].fillna(0)
     df['Genres'] = df['Genres'].fillna('Games')
+    df["Description"]=df["Description"].fillna("esay")
 
 def outliers(dataset, col):
     Q1 = dataset[col].quantile(0.25)
@@ -145,7 +161,7 @@ def avarage_Purchases(data, col):
 
 def ConvertToDateTime(df, lst):
     for col in lst:
-        df[col] = pd.to_datetime(df[col].astype('datetime64')).astype('int64')
+        df[col] = pd.to_datetime(df[col],dayfirst=True).astype('int64')
 
 
 def PreprocessListCategories_train(df, lst):
@@ -156,7 +172,8 @@ def PreprocessListCategories_train(df, lst):
         # Concatenate the one-hot encoded columns with the original DataFrame
         df = pd.concat([df, newdf], axis=1)
     global cols
-    cols = pickle.dumps(df.columns.tolist())
+    cols = (df.columns.tolist())
+    savee(cols,"cols.pkl")
     return df
 
 
@@ -172,7 +189,7 @@ def PreprocessListCategories_test(df, lst):
 
 
 def only_showed_cols(df):
-    x = pickle.loads(cols)
+    x =load("cols.pkl")
     missing_cols = set(x) - set(df.columns)
     # adding columns seen at train but not in test
     for c in missing_cols:
@@ -198,20 +215,21 @@ def count_dev_games(df):
     developer_freq = df['Developer'].value_counts().to_dict()
     df['Developer'] = df['Developer'].map(developer_freq)
     global dev_dict
-    dev_dict = pickle.dumps(developer_freq)
+    dev_dict = savee(developer_freq,"developer_freq.pkl")
+    savee(developer_freq,"developer_freq.pkl")
     return df
 
 
 def replace_dev(df):
     # Replace each developer name with its frequency in the dataset
-    developer_freq = pickle.loads(dev_dict)
+    developer_freq = load("developer_freq.pkl")
     df['Developer'] = df['Developer'].map(developer_freq)
     df['Developer'] = df['Developer'].fillna(0)
     return df
 
 
 def feature_selection_regression(df1,Y1):
-  k = 100
+  k =90
   selector = SelectKBest(f_regression, k=k)
   selector.fit(df1, Y1)
   X_train_kbest = selector.transform(df1)

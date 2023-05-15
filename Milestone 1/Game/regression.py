@@ -9,7 +9,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 
-
 saved_RF = None
 saved_DTreg = None
 saved_GBR = None
@@ -52,7 +51,10 @@ X_test = X_test[selected_f]
 X = base(X)
 X = on_train(X)
 
+
+
 # STEP 6: Train Models
+print("              train accuracy              ")
 rf = RandomForestRegressor()
 rf.fit(X_train, Y_train)
 p = rf.predict(X_train)
@@ -87,6 +89,7 @@ plots_func(Y_train, p)
 
 
 # STEP 8: Evaluate Models
+print("\n              test accuracy              ")
 p = rf.predict(X_test)
 print("Random Forest Model accuracy Test", r2_score(Y_test, p))
 print('Random Forest Model MSE Test', metrics.mean_squared_error(Y_test, p))
@@ -108,6 +111,7 @@ selected_f = feature_selection_regression(X, Y)
 X = X[selected_f]
 
 # STEP 10: Train Models with the whole dataset
+print("\n              whole dataset             ")
 rf.fit(X, Y)
 p = rf.predict(X)
 print("Random Forest Model accuracy overall ", r2_score(Y, p))
@@ -124,8 +128,10 @@ print("Gradient Boosting Regressor Model accuracy overall ", r2_score(Y, p))
 print('Gradient Boosting Regressor Model MSE overall ', metrics.mean_squared_error(Y, p))
 
 # STEP 11: Save the models
-saved_RF = pickle.dumps(rf)
-saved_DTreg = pickle.dumps(DTregressor)
-saved_GBR = pickle.dumps(GBR)
-saved_features = pickle.dumps(selected_f)
+savee(rf,"rf.pkl")
+savee(DTregressor,"DTregressor.pkl")
+savee(GBR,"GBR.pkl")
+savee(selected_f,"selected_f.pkl")
+
+
 
